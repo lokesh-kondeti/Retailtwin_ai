@@ -1,0 +1,54 @@
+# Environment variables - NEVER commit
+.env
+
+# Python virtual environments
+venv/
+env/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Pytest / testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Trained ML models (large binary files - commit only if small)
+trained_models/*.pkl
+trained_models/*.joblib
+trained_models/*.json
+
+# Keep directory
+!trained_models/.gitkeep
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Static generated
+static/uploads/

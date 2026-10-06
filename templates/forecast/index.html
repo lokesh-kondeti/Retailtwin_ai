@@ -1,0 +1,299 @@
+{% extends 'base.html' %}
+{% block title %}Demand Forecast — RetailTwin AI{% endblock %}
+{% block page_title %}Demand Forecast{% endblock %}
+
+{% block content %}
+<div class="mt-4">
+  <div class="d-flex justify-content-between align-items-end mb-4">
+    <div>
+      <h2 class="h3 fw-bold text-dark mb-1">ML Demand Forecasting</h2>
+      <p class="text-secondary mb-0">Predict future product demand using Machine Learning models</p>
+    </div>
+    <button class="btn btn-primary px-4 py-2 shadow-sm fw-medium rounded-3" onclick="trainModel()" id="trainBtn">
+      <i class="bi bi-cpu me-2"></i>Train ML Model
+    </button>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-xl-4 col-lg-5">
+      <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card-header bg-transparent border-0 pt-4 pb-0 px-4">
+          <h5 class="fw-bold mb-0">Forecast Setup</h5>
+        </div>
+        <div class="card-body p-4">
+          <div class="mb-4">
+            <label class="form-label text-secondary fw-medium small text-uppercase tracking-wide">Store <span class="text-danger">*</span></label>
+            <select class="form-select form-select-lg bg-light border-0" id="fc_store_id"><option value="">Select store...</option></select>
+          </div>
+          <div class="mb-4">
+            <label class="form-label text-secondary fw-medium small text-uppercase tracking-wide">Product <span class="text-danger">*</span></label>
+            <select class="form-select form-select-lg bg-light border-0" id="fc_product_id"><option value="">Select product...</option></select>
+          </div>
+          <div class="mb-4">
+            <label class="form-label text-secondary fw-medium small text-uppercase tracking-wide">Forecast Date <span class="text-danger">*</span></label>
+            <input type="date" class="form-control form-control-lg bg-light border-0" id="fc_date">
+          </div>
+          <div class="mb-4 form-check form-switch">
+            <input type="checkbox" class="form-check-input" id="fc_save" checked>
+            <label class="form-check-label text-dark fw-medium ms-1">Save forecast to database</label>
+          </div>
+          <button class="btn btn-dark btn-lg w-100 shadow-sm rounded-3 fw-bold" onclick="generateForecast()" id="forecastBtn">
+            <i class="bi bi-magic me-2 text-warning"></i>Generate Forecast
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-8 col-lg-7">
+      <div class="card border-0 shadow-sm rounded-4 h-100" id="forecastResult" style="display:none">
+        <div class="card-header bg-transparent border-0 pt-4 pb-0 px-4">
+          <h5 class="fw-bold mb-0">Forecast Result</h5>
+        </div>
+        <div class="card-body p-4">
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <div class="card bg-primary text-white border-0 h-100 rounded-4 shadow-sm overflow-hidden position-relative">
+                <div class="position-absolute top-0 end-0 opacity-25 p-3"><i class="bi bi-graph-up-arrow display-4"></i></div>
+                <div class="card-body text-start d-flex flex-column justify-content-center position-relative z-1">
+                  <div class="text-white-50 fw-semibold text-uppercase small tracking-wider mb-2">Predicted Demand</div>
+                  <div class="display-5 fw-bolder mb-0" id="fc_predicted">0</div>
+                  <div class="text-white-50 small mt-1">units / day</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card bg-light border-0 h-100 rounded-4">
+                <div class="card-body d-flex flex-column justify-content-between">
+                  <div>
+                    <div class="text-secondary fw-semibold text-uppercase small tracking-wider mb-1">Model Used</div>
+                    <div class="fs-5 fw-bold text-dark text-truncate" id="fc_model"></div>
+                  </div>
+                  <div class="mt-3">
+                    <div class="text-secondary fw-semibold text-uppercase small tracking-wider mb-1" id="fc_quality_label"></div>
+                    <div class="fs-4 fw-bold text-success" id="fc_quality"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card bg-light border-0 h-100 rounded-4">
+                <div class="card-body d-flex flex-column justify-content-between">
+                  <div>
+                    <div class="text-secondary fw-semibold text-uppercase small tracking-wider mb-1">Product & Store</div>
+                    <div class="fs-6 fw-bold text-dark text-truncate mb-1" id="fc_product_label"></div>
+                    <div class="text-secondary text-truncate small" id="fc_store_label"></div>
+                  </div>
+                  <div class="mt-3">
+                    <div class="badge bg-dark bg-opacity-10 text-dark px-3 py-2 rounded-pill fw-semibold" id="fc_date_label"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div id="fc_metrics_row" class="mb-4" style="display:none">
+            <h6 class="text-secondary fw-bold mb-3 text-uppercase small tracking-wider">Model Evaluation Metrics (Chronological Validation)</h6>
+            <div class="row g-3">
+              <div class="col-6 col-sm-3">
+                <div class="card border border-light shadow-sm rounded-3 h-100">
+                  <div class="card-body p-3 text-center">
+                    <div class="text-secondary small fw-medium mb-1">MAE</div>
+                    <div class="fs-5 fw-bold text-dark" id="m_mae"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6 col-sm-3">
+                <div class="card border border-light shadow-sm rounded-3 h-100">
+                  <div class="card-body p-3 text-center">
+                    <div class="text-secondary small fw-medium mb-1">RMSE</div>
+                    <div class="fs-5 fw-bold text-dark" id="m_rmse"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6 col-sm-3">
+                <div class="card border border-light shadow-sm rounded-3 h-100">
+                  <div class="card-body p-3 text-center">
+                    <div class="text-secondary small fw-medium mb-1">R² Score</div>
+                    <div class="fs-5 fw-bold text-dark" id="m_r2"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6 col-sm-3">
+                <div class="card border-0 bg-primary bg-opacity-10 shadow-sm rounded-3 h-100">
+                  <div class="card-body p-3 text-center">
+                    <div class="text-primary small fw-semibold mb-1">Quality</div>
+                    <div class="fs-5 fw-bold text-primary" id="m_quality"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div id="fc_comparison_row" class="mb-4" style="display:none">
+            <h6 class="text-secondary fw-bold mb-3 text-uppercase small tracking-wider">Candidate Model Comparison</h6>
+            <div class="table-responsive">
+              <table class="table table-sm table-hover border rounded mb-1">
+                <thead class="table-light text-secondary small">
+                  <tr><th>Model</th><th>MAE</th><th>RMSE</th><th>R²</th></tr>
+                </thead>
+                <tbody id="fc_comparison_body"></tbody>
+              </table>
+            </div>
+            <div class="small fw-semibold text-success mt-1">
+              <i class="bi bi-trophy-fill me-1"></i> Best Model Selected: <span id="fc_best_model"></span>
+            </div>
+          </div>
+          
+          <div class="card border border-light shadow-sm rounded-4 mt-3">
+            <div class="card-body p-3">
+              <canvas id="forecastChart" height="100"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card border-0 shadow-sm rounded-4 h-100 d-flex justify-content-center align-items-center" id="forecastInstructions">
+        <div class="card-body text-center p-5">
+          <div class="bg-primary bg-opacity-10 rounded-circle d-inline-flex p-4 mb-4">
+            <i class="bi bi-bar-chart-line display-4 text-primary"></i>
+          </div>
+          <h4 class="fw-bold text-dark mb-3">Generate Your First Forecast</h4>
+          <p class="text-secondary fs-6 mb-4">Select a store, product and target date,<br>then click Generate Forecast.</p>
+          <div class="alert alert-warning border-0 bg-warning bg-opacity-10 text-dark shadow-sm d-inline-flex align-items-center text-start px-4 py-3 rounded-4">
+            <i class="bi bi-info-circle-fill fs-4 me-3 text-warning"></i>
+            <small class="fw-medium">
+              Train the ML model first for best accuracy.<br>Without training, baseline moving average is used.
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm rounded-4 mt-4 mb-5">
+    <div class="card-header bg-transparent border-bottom-0 pt-4 px-4 pb-2">
+      <h5 class="fw-bold mb-0">Recent Forecasts</h5>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive px-3 pb-3">
+        <table class="table table-borderless table-hover align-middle mb-0">
+          <thead class="border-bottom border-light">
+            <tr>
+              <th class="text-secondary fw-semibold small text-uppercase tracking-wider py-3 ps-3">Product</th>
+              <th class="text-secondary fw-semibold small text-uppercase tracking-wider py-3">Store</th>
+              <th class="text-secondary fw-semibold small text-uppercase tracking-wider py-3">Date</th>
+              <th class="text-secondary fw-semibold small text-uppercase tracking-wider py-3">Predicted Demand</th>
+              <th class="text-secondary fw-semibold small text-uppercase tracking-wider py-3">Model</th>
+              <th class="text-secondary fw-semibold small text-uppercase tracking-wider py-3">Quality Score</th>
+              <th class="text-secondary fw-semibold small text-uppercase tracking-wider py-3 pe-3">Generated</th>
+            </tr>
+          </thead>
+          <tbody id="forecastHistoryTable">
+            <tr><td colspan="7" class="text-center py-5 text-secondary"><div class="spinner-border spinner-border-sm me-2"></div>Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let fcChart = null;
+
+async function initSelects() {
+  const [stRes,prRes] = await Promise.all([fetch('/api/stores'),fetch('/api/products')]);
+  const [stores,products] = await Promise.all([stRes.json(),prRes.json()]);
+  document.getElementById('fc_store_id').innerHTML='<option value="">Select store...</option>'+
+    (stores.data||[]).map(s=>`<option value="${s.store_id}">${s.store_name}</option>`).join('');
+  document.getElementById('fc_product_id').innerHTML='<option value="">Select product...</option>'+
+    (products.data||[]).map(p=>`<option value="${p.product_id}">${p.product_name}</option>`).join('');
+  const tomorrow=new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  document.getElementById('fc_date').value=tomorrow.toISOString().split('T')[0];
+}
+
+async function generateForecast() {
+  const storeId=document.getElementById('fc_store_id').value;
+  const prodId=document.getElementById('fc_product_id').value;
+  const date=document.getElementById('fc_date').value;
+  const save=document.getElementById('fc_save').checked;
+  if(!storeId||!prodId||!date){showToast('Please select store, product and date.','warning');return;}
+  const btn=document.getElementById('forecastBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Forecasting...';
+  try {
+    const json=await apiRequest('POST','/api/forecast',{product_id:parseInt(prodId),store_id:parseInt(storeId),forecast_date:date,save});
+    if(!json.success){handleApiError(json);return;}
+    document.getElementById('forecastResult').style.display='block';
+    document.getElementById('forecastInstructions').style.display='none';
+    document.getElementById('fc_predicted').textContent=parseFloat(json.predicted_demand).toFixed(1);
+    document.getElementById('fc_model').textContent=json.model_name||'';
+    document.getElementById('fc_quality_label').textContent=json.quality_label||'';
+    document.getElementById('fc_quality').textContent=json.quality_score!=null?json.quality_score.toFixed(1)+'%':'—';
+    document.getElementById('fc_product_label').textContent=json.product_name||'';
+    document.getElementById('fc_store_label').textContent=json.store_name||'';
+    document.getElementById('fc_date_label').textContent='For: '+(json.forecast_date||'');
+    if(json.metrics) {
+      document.getElementById('fc_metrics_row').style.display='flex';
+      document.getElementById('m_mae').textContent=json.metrics.MAE;
+      document.getElementById('m_rmse').textContent=json.metrics.RMSE;
+      document.getElementById('m_r2').textContent=json.metrics.R2;
+      document.getElementById('m_quality').textContent=json.metrics.quality_score+'%';
+    } else { document.getElementById('fc_metrics_row').style.display='none'; }
+    if(json.comparison) {
+      document.getElementById('fc_comparison_row').style.display='block';
+      document.getElementById('fc_comparison_body').innerHTML = json.comparison.map(c => `<tr><td>${c.model}</td><td>${c.mae}</td><td>${c.rmse}</td><td>${c.r2}</td></tr>`).join('');
+      document.getElementById('fc_best_model').textContent = json.model_name;
+    } else {
+      document.getElementById('fc_comparison_row').style.display='none';
+    }
+    const hist=json.historical_data||[];
+    if(fcChart) fcChart.destroy();
+    const labels=hist.map(h=>h.date);
+    const values=hist.map(h=>h.quantity);
+    labels.push(json.forecast_date);
+    values.push(parseFloat(json.predicted_demand));
+    fcChart=new Chart(document.getElementById('forecastChart'),{
+      type:'line',
+      data:{labels,datasets:[{
+        label:'Historical Sales',data:values.slice(0,-1),borderColor:'#198754',backgroundColor:'rgba(25,135,84,0.08)',fill:true,tension:0.3,pointRadius:3
+      },{
+        label:'Predicted Demand',data:[...Array(values.length-1).fill(null),values[values.length-1]],
+        borderColor:'#dc3545',backgroundColor:'rgba(220,53,69,0.15)',pointStyle:'star',pointRadius:10,borderDash:[6,3]
+      }]},
+      options:{responsive:true,scales:{y:{beginAtZero:true}}}
+    });
+    loadForecastHistory();
+  } finally { btn.disabled=false; btn.innerHTML='<i class="bi bi-magic me-2 text-warning"></i>Generate Forecast'; }
+}
+
+async function trainModel() {
+  const btn=document.getElementById('trainBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Training...';
+  try {
+    const json=await apiRequest('POST','/api/forecasts/train',{});
+    if(json.success){showToast(`Model trained! Quality: ${json.metrics?.quality_score?.toFixed(1)||'?'}%`,'success');}
+    else{handleApiError(json);}
+  } finally { btn.disabled=false; btn.innerHTML='<i class="bi bi-cpu me-1"></i>Train ML Model'; }
+}
+
+async function loadForecastHistory() {
+  const res=await fetch('/api/forecasts?limit=20'); const json=await res.json();
+  if(!json.success) return;
+  const tbody=document.getElementById('forecastHistoryTable');
+  if(!json.data.length){tbody.innerHTML='<tr><td colspan="7" class="text-center py-3 text-muted">No forecasts generated yet.</td></tr>';return;}
+  tbody.innerHTML=json.data.map(f=>`
+    <tr>
+      <td class="fw-semibold">${f.product_name||''}</td>
+      <td>${f.store_name||''}</td>
+      <td>${f.forecast_date||''}</td>
+      <td class="fw-bold text-primary">${parseFloat(f.predicted_demand).toFixed(1)}</td>
+      <td><span class="badge bg-secondary">${f.model_name||''}</span></td>
+      <td>${parseFloat(f.confidence_score).toFixed(1)}%</td>
+      <td class="text-muted small">${(f.created_at||'').substring(0,16)}</td>
+    </tr>`).join('');
+}
+
+document.addEventListener('DOMContentLoaded',()=>{ initSelects(); loadForecastHistory(); });
+</script>
+{% endblock %}

@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% block title %}Sales — RetailTwin AI{% endblock %}
+{% block page_title %}Sales Management{% endblock %}
+
+{% block content %}
+<div class="mt-3">
+  <div class="d-flex justify-content-between align-items-center page-header">
+    <div><h2 class="h5 mb-0">Sales</h2>
+      <small class="text-muted">Record and view sales transactions</small></div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSaleModal">
+      <i class="bi bi-cart-plus me-1"></i>Record Sale
+    </button>
+  </div>
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2">
+        <div class="col-md-3"><select id="saleStoreFilter" class="form-select"><option value="">All Stores</option></select></div>
+        <div class="col-md-3"><select id="saleProductFilter" class="form-select"><option value="">All Products</option></select></div>
+        <div class="col-md-2"><input type="date" id="saleDateFrom" class="form-control" placeholder="From"></div>
+        <div class="col-md-2"><input type="date" id="saleDateTo" class="form-control" placeholder="To"></div>
+        <div class="col-md-2"><button class="btn btn-outline-secondary w-100" onclick="loadSales()"><i class="bi bi-search"></i> Search</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover border-0 mb-0">
+          <thead class="table-light">
+            <tr><th>#</th><th>Product</th><th>Store</th><th>Date</th><th>Qty</th><th>Price</th><th>Discount</th><th>Revenue</th></tr>
+          </thead>
+          <tbody id="salesBody"><tr><td colspan="8" class="text-center py-4 text-muted">Loading...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="p-3 border-top" id="salesSummary"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="addSaleModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content p-2 border-0 shadow">
+    <div class="modal-header">
+      <h5 class="modal-title"><i class="bi bi-cart-plus me-2"></i>Record New Sale</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Store *</label>
+          <select class="form-select" id="sale_store_id" onchange="loadProductsForSale()"><option value="">Select store...</option></select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Product *</label>
+          <select class="form-select" id="sale_product_id" onchange="fetchInventoryStock()"><option value="">Select product...</option></select>
+        </div>
+        <div class="col-12"><div id="stockInfo" class="alert alert-info py-2 small d-none"></div></div>
+        <div class="col-md-6"><label class="form-label">Sale Date *</label>
+          <input type="date" class="form-control" id="sale_date"></div>
+        <div class="col-md-6"><label class="form-label">Quantity *</label>
+          <input type="number" class="form-control" id="sale_qty" min="1" value="1"></div>
+        <div class="col-md-6">
+          <label class="form-label">Selling Price (₹)</label>
+          <input type="text" class="form-control bg-light" id="sale_price" readonly
+                 placeholder="Select a product…" tabindex="-1">
+          <div class="form-text text-muted">Auto-filled from product catalogue</div>
+        </div>
+        <div class="col-md-6"><label class="form-label">Discount (%)</label>
+          <input type="number" class="form-control" id="sale_discount" min="0" max="100" value="0" step="0.01"></div>
+        <div class="col-12">
+          <div class="bg-light rounded p-2 small">
+            Estimated Revenue: <strong id="estRevenue">₹0.00</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      <button type="button" class="btn btn-success" onclick="recordSale()">
+        <i class="bi bi-check-lg me-1"></i>Record Sale
+      </button>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function setTodayDate() {
+  document.getElementById('sale_date').value = new Date().toISOString().split('T')[0];
+}
+
+async function loadFilters() {
+  const [stRes,prRes] = await Promise.all([fetch('/api/stores'),fetch('/api/products')]);
+  const [stores,products] = await Promise.all([stRes.json(),prRes.json()]);
+  ['saleStoreFilter','sale_store_id'].forEach(id => {
+    const sel=document.getElementById(id); if(!sel) return;
+    const isFilter=id==='saleStoreFilter';
+    sel.innerHTML=(isFilter?'<option value="">All Stores</option>':'<option value="">Select store...</option>')+
+      (stores.data||[]).map(s=>`<option value="${s.store_id}">${s.store_name}</option>`).join('');
+  });
+  document.getElementById('saleProductFilter').innerHTML='<option value="">All Products</option>'+
+    (products.data||[]).map(p=>`<option value="${p.product_id}">${p.product_name}</option>`).join('');
+}
+
+async function loadProductsForSale() {
+  const res=await fetch('/api/products'); const json=await res.json();
+  const sel=document.getElementById('sale_product_id');
+  // Store both selling_price and cost_price as data attributes
+  sel.innerHTML='<option value="">Select product...</option>'+(json.data||[]).map(p=>
+    `<option value="${p.product_id}" data-sell="${p.selling_price}" data-cost="${p.cost_price}">${p.product_name}</option>`
+  ).join('');
+  document.getElementById('stockInfo').classList.add('d-none');
+  // Clear price display when store changes
+  document.getElementById('sale_price').value = '';
+  updateEstRevenue();
+}
+
+async function fetchInventoryStock() {
+  const storeId=document.getElementById('sale_store_id').value;
+  const productId=document.getElementById('sale_product_id').value;
+  const opt=document.getElementById('sale_product_id').selectedOptions[0];
+
+  // Auto-populate read-only selling price from product data attribute
+  if(opt && opt.dataset.sell) {
+    document.getElementById('sale_price').value = '₹' + parseFloat(opt.dataset.sell).toFixed(2);
+  } else {
+    document.getElementById('sale_price').value = '';
+  }
+  updateEstRevenue();
+
+  if(!storeId||!productId) return;
+  const res=await fetch(`/api/inventory?store_id=${storeId}&product_id=${productId}`);
+  const json=await res.json();
+  const info=document.getElementById('stockInfo');
+  if(json.success&&json.data.length>0) {
+    const inv=json.data[0];
+    info.className=`alert py-2 small ${inv.current_stock<=inv.reorder_level?'alert-warning':'alert-info'}`;
+    info.innerHTML=`<i class="bi bi-archive me-1"></i>Available Stock: <strong>${inv.current_stock}</strong> units — Status: ${inv.stock_status === 'NORMAL' ? '<span class="badge bg-success">NORMAL</span>' : inv.stock_status === 'LOW_STOCK' ? '<span class="badge bg-warning">LOW</span>' : inv.stock_status === 'OVERSTOCK' ? '<span class="badge bg-info">OVERSTOCK</span>' : inv.stock_status === 'OUT_OF_STOCK' ? '<span class="badge bg-danger">OUT OF STOCK</span>' : '<span class="badge bg-secondary">' + inv.stock_status + '</span>'}`;
+    info.classList.remove('d-none');
+  } else {
+    info.className='alert alert-danger py-2 small';
+    info.innerHTML='No inventory record found for this product/store.';
+    info.classList.remove('d-none');
+  }
+}
+
+function updateEstRevenue() {
+  const qty=parseFloat(document.getElementById('sale_qty').value)||0;
+  const discount=parseFloat(document.getElementById('sale_discount').value)||0;
+  // Read numeric price from the product option's data attribute (not the display string)
+  const opt=document.getElementById('sale_product_id').selectedOptions[0];
+  const price=opt && opt.dataset.sell ? parseFloat(opt.dataset.sell) : 0;
+  document.getElementById('estRevenue').textContent='₹'+(qty*price*(1-discount/100)).toFixed(2);
+}
+
+async function loadSales() {
+  const storeId=document.getElementById('saleStoreFilter').value;
+  const productId=document.getElementById('saleProductFilter').value;
+  const dateFrom=document.getElementById('saleDateFrom').value;
+  const dateTo=document.getElementById('saleDateTo').value;
+  let url='/api/sales?limit=200&';
+  if(storeId)   url+=`store_id=${storeId}&`;
+  if(productId) url+=`product_id=${productId}&`;
+  if(dateFrom)  url+=`date_from=${dateFrom}&`;
+  if(dateTo)    url+=`date_to=${dateTo}&`;
+  url+=`_t=${Date.now()}`;
+  document.getElementById('salesBody').innerHTML='<tr><td colspan="8" class="text-center py-3 text-muted">Loading...</td></tr>';
+  const res=await fetch(url); const json=await res.json();
+  if(!json.success){handleApiError(json);return;}
+  const tbody=document.getElementById('salesBody');
+  if(!json.data.length){
+    tbody.innerHTML='<tr><td colspan="8" class="text-center py-4 text-muted">No sales found.</td></tr>';
+    document.getElementById('salesSummary').innerHTML=''; return;
+  }
+  tbody.innerHTML=json.data.map(s=>`
+    <tr>
+      <td class="text-muted">${s.sale_id}</td>
+      <td class="fw-semibold">${s.product_name||''}</td>
+      <td>${s.store_name||''}</td>
+      <td>${s.sale_date||''}</td>
+      <td>${s.quantity_sold}</td>
+      <td>₹${parseFloat(s.selling_price).toFixed(2)}</td>
+      <td>${parseFloat(s.discount).toFixed(1)}%</td>
+      <td class="fw-semibold text-success">₹${parseFloat(s.revenue).toFixed(2)}</td>
+    </tr>`).join('');
+  const totalRev=json.data.reduce((sum,s)=>sum+parseFloat(s.revenue),0);
+  const totalQty=json.data.reduce((sum,s)=>sum+s.quantity_sold,0);
+  document.getElementById('salesSummary').innerHTML=
+    `<small class="text-muted">Showing <strong>${json.data.length}</strong> records — Total Qty: <strong>${totalQty}</strong> — Revenue: <strong class="text-success">₹${totalRev.toFixed(2)}</strong></small>`;
+}
+
+async function recordSale() {
+  const storeId=document.getElementById('sale_store_id').value;
+  const productId=document.getElementById('sale_product_id').value;
+  const saleDate=document.getElementById('sale_date').value;
+  const qty=document.getElementById('sale_qty').value;
+  const discount=document.getElementById('sale_discount').value;
+
+  // Validate that a product with a known price has been selected
+  const opt=document.getElementById('sale_product_id').selectedOptions[0];
+  if(!storeId||!productId||!saleDate||!qty||!opt||!opt.dataset.sell){
+    showToast('Please fill all required fields and select a valid product.','warning');return;
+  }
+
+  // selling_price is NOT sent — backend fetches it authoritatively from the Product table
+  const json=await apiRequest('POST','/api/sales',{
+    store_id:parseInt(storeId),product_id:parseInt(productId),
+    sale_date:saleDate,quantity_sold:parseInt(qty),
+    discount:parseFloat(discount)||0
+  });
+  if(json.success){showToast('Sale recorded! Inventory updated.','success');bootstrap.Modal.getInstance(document.getElementById('addSaleModal')).hide();loadSales();}
+  else{handleApiError(json);}
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  setTodayDate(); loadFilters(); loadSales();
+  ['sale_qty','sale_discount'].forEach(id=>{
+    document.getElementById(id).addEventListener('input',updateEstRevenue);
+  });
+});
+</script>
+{% endblock %}
+

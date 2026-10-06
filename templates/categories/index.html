@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% block title %}Categories — RetailTwin AI{% endblock %}
+{% block page_title %}Category Management{% endblock %}
+
+{% block content %}
+<div class="mt-4">
+  <div class="d-flex justify-content-between align-items-center page-header mb-4">
+    <div>
+      <h2 class="h4 mb-1 fw-bold">Categories</h2>
+      <p class="text-muted mb-0">Manage product categories</p>
+    </div>
+    <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addCatModal">
+      <i class="bi bi-plus-circle me-2"></i>Add Category
+    </button>
+  </div>
+  <div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover border-0 mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th class="border-0 py-3 px-4">#</th>
+              <th class="border-0 py-3">Category Name</th>
+              <th class="border-0 py-3">Description</th>
+              <th class="border-0 py-3">Products</th>
+              <th class="border-0 py-3">Created</th>
+              <th class="border-0 py-3 text-end px-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="catBody">
+            <tr><td colspan="6" class="text-center py-5 text-muted"><i class="bi bi-hourglass-split me-2"></i>Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="addCatModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow p-3 rounded-4">
+      <div class="modal-header border-bottom-0 pb-0">
+        <h5 class="modal-title fw-bold">Add Category</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label fw-medium">Category Name <span class="text-danger">*</span></label>
+          <input type="text" class="form-control form-control-lg bg-light border-0" id="add_cat_name" maxlength="100" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-medium">Description</label>
+          <textarea class="form-control bg-light border-0" id="add_cat_desc" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer border-top-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary px-4" onclick="createCategory()">Create</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="editCatModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow p-3 rounded-4">
+      <div class="modal-header border-bottom-0 pb-0">
+        <h5 class="modal-title fw-bold">Edit Category</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit_cat_id">
+        <div class="mb-3">
+          <label class="form-label fw-medium">Category Name <span class="text-danger">*</span></label>
+          <input type="text" class="form-control form-control-lg bg-light border-0" id="edit_cat_name" maxlength="100" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-medium">Description</label>
+          <textarea class="form-control bg-light border-0" id="edit_cat_desc" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer border-top-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary px-4" onclick="updateCategory()">Update</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadCategories() {
+  const res = await fetch('/api/categories');
+  const json = await res.json();
+  if (!json.success) return;
+  const tbody = document.getElementById('catBody');
+  if (!json.data.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-muted">No categories yet. Create one!</td></tr>'; return;
+  }
+  tbody.innerHTML = json.data.map(c => `
+    <tr>
+      <td class="text-muted px-4">${c.category_id}</td>
+      <td class="fw-semibold">${c.category_name}</td>
+      <td class="text-muted">${c.description||'—'}</td>
+      <td><span class="badge bg-primary-subtle text-primary rounded-pill px-3">${c.product_count||0}</span></td>
+      <td class="text-muted small">${c.created_date||''}</td>
+      <td class="text-end px-4">
+        <button class="btn btn-sm btn-light text-primary me-1 rounded-3" onclick='openEditCat(${JSON.stringify(c)})'><i class="bi bi-pencil"></i></button>
+        <button class="btn btn-sm btn-light text-danger rounded-3" onclick="deleteCat(${c.category_id},'${c.category_name.replace(/'/g,"\\'")}')">
+          <i class="bi bi-trash"></i></button>
+      </td>
+    </tr>`).join('');
+}
+
+async function createCategory() {
+  const name = document.getElementById('add_cat_name').value.trim();
+  const desc = document.getElementById('add_cat_desc').value.trim();
+  if (!name) { showToast('Category name is required.', 'warning'); return; }
+  const json = await apiRequest('POST','/api/categories',{category_name:name,description:desc});
+  if (json.success) {
+    showToast('Category created!','success');
+    bootstrap.Modal.getInstance(document.getElementById('addCatModal')).hide();
+    document.getElementById('add_cat_name').value='';
+    document.getElementById('add_cat_desc').value='';
+    loadCategories();
+  } else { handleApiError(json); }
+}
+
+function openEditCat(c) {
+  document.getElementById('edit_cat_id').value   = c.category_id;
+  document.getElementById('edit_cat_name').value = c.category_name;
+  document.getElementById('edit_cat_desc').value = c.description||'';
+  new bootstrap.Modal(document.getElementById('editCatModal')).show();
+}
+
+async function updateCategory() {
+  const id   = document.getElementById('edit_cat_id').value;
+  const name = document.getElementById('edit_cat_name').value.trim();
+  const desc = document.getElementById('edit_cat_desc').value.trim();
+  if (!name) { showToast('Name required.','warning'); return; }
+  const json = await apiRequest('PUT',`/api/categories/${id}`,{category_name:name,description:desc});
+  if (json.success) {
+    showToast('Category updated!','success');
+    bootstrap.Modal.getInstance(document.getElementById('editCatModal')).hide();
+    loadCategories();
+  } else { handleApiError(json); }
+}
+
+async function deleteCat(id,name) {
+  if (!confirmDelete(`Delete category "${name}"?`)) return;
+  const json = await apiRequest('DELETE',`/api/categories/${id}`);
+  if (json.success) { showToast('Deleted.','success'); loadCategories(); }
+  else { handleApiError(json); }
+}
+
+document.addEventListener('DOMContentLoaded', loadCategories);
+</script>
+{% endblock %}

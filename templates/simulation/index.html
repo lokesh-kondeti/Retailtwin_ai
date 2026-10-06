@@ -1,0 +1,315 @@
+{% extends 'base.html' %}
+{% block title %}Digital Twin — RetailTwin AI{% endblock %}
+{% block page_title %}Digital Twin Simulation{% endblock %}
+
+{% block content %}
+<style>
+  #scenariosContainer { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+  .scenario-row {
+    flex: 1 1 calc(33.333% - 0.75rem);
+    min-width: 140px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .scenario-row > input { border-radius: 0.375rem !important; width: 100% !important; border: 1px solid #e2e8f0; }
+  .scenario-row > button { border-radius: 0.375rem !important; width: 100% !important; margin-top: 0.25rem; }
+  #simComparisonBody td:nth-child(5) { font-weight: 800; font-size: 1.15rem; background-color: rgba(25,135,84,0.08); }
+  #bestScenarioAlert {
+    border: 2px dashed #198754 !important;
+    background: linear-gradient(to right, #f0fdf4, #ffffff) !important;
+    padding: 1.5rem !important;
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px rgba(25,135,84,0.1);
+  }
+  .page-header h2 { font-weight: 700; color: #1e293b; }
+</style>
+
+<div class="mt-4">
+  <div class="page-header mb-4">
+    <h2 class="h3 mb-1">Digital Twin Simulation</h2>
+    <p class="text-secondary mb-0">
+      A virtual representation of retail inventory and demand behavior to evaluate stocking strategies.
+    </p>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-xl-4 col-lg-5">
+      <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card-header bg-transparent border-0 pt-4 pb-0 px-4">
+          <h5 class="fw-bold mb-0"><i class="bi bi-sliders text-primary me-2"></i>Simulation Setup</h5>
+        </div>
+        <div class="card-body p-4">
+          <div class="mb-4">
+            <label class="form-label text-secondary fw-medium small text-uppercase tracking-wide">Store <span class="text-danger">*</span></label>
+            <select class="form-select form-select-lg bg-light border-0" id="sim_store_id" onchange="loadInventoryInfo()"><option value="">Select store...</option></select>
+          </div>
+          <div class="mb-4">
+            <label class="form-label text-secondary fw-medium small text-uppercase tracking-wide">Product <span class="text-danger">*</span></label>
+            <select class="form-select form-select-lg bg-light border-0" id="sim_product_id" onchange="loadInventoryInfo()"><option value="">Select product...</option></select>
+          </div>
+          <div id="simInventoryInfo" class="alert alert-info py-3 px-4 border-0 rounded-3 small d-none mb-4"></div>
+          
+          <div class="row g-3 mb-4">
+            <div class="col-6">
+              <label class="form-label text-secondary fw-medium small text-uppercase tracking-wide">Sell Price (₹) *</label>
+              <input type="number" class="form-control form-control-lg bg-light border-0" id="sim_price" min="0.01" step="0.01">
+            </div>
+            <div class="col-6">
+              <label class="form-label text-secondary fw-medium small text-uppercase tracking-wide">Cost Price (₹) *</label>
+              <input type="number" class="form-control form-control-lg bg-light border-0" id="sim_cost" min="0.01" step="0.01">
+            </div>
+          </div>
+          
+          <div class="row g-3 mb-4">
+            <div class="col-6">
+              <label class="form-label text-secondary fw-medium small text-uppercase tracking-wide">Discount (%)</label>
+              <input type="number" class="form-control form-control-lg bg-light border-0" id="sim_discount" value="0" min="0" max="100">
+            </div>
+            <div class="col-6">
+              <label class="form-label text-secondary fw-medium small text-uppercase tracking-wide">Period (Days) *</label>
+              <input type="number" class="form-control form-control-lg bg-light border-0" id="sim_days" value="7" min="1" max="90">
+            </div>
+          </div>
+          
+          <hr class="border-light my-4">
+          
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0 text-dark">Scenarios to Test</h6>
+            <button class="btn btn-sm btn-outline-primary fw-medium rounded-pill px-3" onclick="addScenario()">
+              <i class="bi bi-plus-lg me-1"></i>Add
+            </button>
+          </div>
+          
+          <div id="scenariosContainer" class="mb-4">
+            <div class="scenario-row">
+              <input type="text" class="form-control form-control-sm fw-semibold text-primary" placeholder="Scenario name" value="Conservative">
+              <input type="number" class="form-control form-control-sm" placeholder="Stock" min="0" value="100">
+              <button class="btn btn-sm btn-light text-danger border" onclick="removeScenario(this)"><i class="bi bi-trash"></i></button>
+            </div>
+            <div class="scenario-row">
+              <input type="text" class="form-control form-control-sm fw-semibold text-warning" placeholder="Scenario name" value="Balanced">
+              <input type="number" class="form-control form-control-sm" placeholder="Stock" min="0" value="150">
+              <button class="btn btn-sm btn-light text-danger border" onclick="removeScenario(this)"><i class="bi bi-trash"></i></button>
+            </div>
+            <div class="scenario-row">
+              <input type="text" class="form-control form-control-sm fw-semibold text-danger" placeholder="Scenario name" value="Aggressive">
+              <input type="number" class="form-control form-control-sm" placeholder="Stock" min="0" value="200">
+              <button class="btn btn-sm btn-light text-danger border" onclick="removeScenario(this)"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+          
+          <button class="btn btn-success btn-lg w-100 shadow-sm rounded-3 fw-bold" onclick="runSimulations()" id="runSimBtn">
+            <i class="bi bi-play-fill me-2"></i>Run Simulation
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-8 col-lg-7">
+      <div id="simResultsPanel" style="display:none" class="h-100 flex-column">
+        <div class="alert alert-success mb-4" id="bestScenarioAlert">
+          <div class="d-flex align-items-center mb-2">
+            <div class="bg-success text-white rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width:40px;height:40px;">
+              <i class="bi bi-trophy-fill fs-5"></i>
+            </div>
+            <h5 class="fw-bold mb-0 text-success">Recommended Scenario</h5>
+          </div>
+          <p class="mb-0 fs-6 text-dark ms-5 ps-1" id="bestScenarioText"></p>
+        </div>
+        
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+          <div class="card-header bg-transparent border-bottom-0 pt-4 px-4 pb-2">
+            <h5 class="fw-bold mb-0">Scenario Comparison</h5>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive px-3 pb-3">
+              <table class="table table-hover align-middle mb-0 border-top border-light">
+                <thead class="bg-light">
+                  <tr>
+                    <th class="text-secondary fw-semibold small text-uppercase py-3 rounded-start">Scenario</th>
+                    <th class="text-secondary fw-semibold small text-uppercase py-3">Stock</th>
+                    <th class="text-secondary fw-semibold small text-uppercase py-3">Sales</th>
+                    <th class="text-secondary fw-semibold small text-uppercase py-3">Revenue</th>
+                    <th class="text-success fw-bold small text-uppercase py-3">Profit</th>
+                    <th class="text-secondary fw-semibold small text-uppercase py-3">Stockout</th>
+                    <th class="text-secondary fw-semibold small text-uppercase py-3">Overstock</th>
+                    <th class="text-secondary fw-semibold small text-uppercase py-3">Score</th>
+                    <th class="rounded-end"></th>
+                  </tr>
+                </thead>
+                <tbody id="simComparisonBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+          <div class="card-header bg-transparent border-bottom-0 pt-4 px-4 pb-2">
+            <h5 class="fw-bold mb-0">Comparison Chart</h5>
+          </div>
+          <div class="card-body p-4"><canvas id="simChart" height="100"></canvas></div>
+        </div>
+        
+        <div class="alert alert-light border border-light rounded-4 text-secondary small p-3">
+          <i class="bi bi-info-circle me-2"></i><span id="scoringExplanation"></span>
+        </div>
+      </div>
+      
+      <div class="card border-0 shadow-sm rounded-4 h-100 d-flex justify-content-center align-items-center" id="simInstructions">
+        <div class="card-body text-center p-5">
+          <div class="bg-light rounded-circle d-inline-flex p-4 mb-4">
+            <i class="bi bi-cpu display-4 text-primary"></i>
+          </div>
+          <h4 class="fw-bold text-dark mb-3">Configure and Run a Simulation</h4>
+          <p class="text-secondary fs-6 mb-0">Select a product and store, define scenario stock levels,<br>then click Run Simulation to compare strategies.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let simChart=null;
+
+async function initSimSelects() {
+  const [stRes,prRes]=await Promise.all([fetch('/api/stores'),fetch('/api/products')]);
+  const [stores,products]=await Promise.all([stRes.json(),prRes.json()]);
+  document.getElementById('sim_store_id').innerHTML='<option value="">Select store...</option>'+
+    (stores.data||[]).map(s=>`<option value="${s.store_id}">${s.store_name}</option>`).join('');
+  document.getElementById('sim_product_id').innerHTML='<option value="">Select product...</option>'+
+    (products.data||[]).map(p=>`<option value="${p.product_id}" data-cost="${p.cost_price}" data-sell="${p.selling_price}">${p.product_name}</option>`).join('');
+}
+
+async function loadInventoryInfo() {
+  const storeId=document.getElementById('sim_store_id').value;
+  const prodId=document.getElementById('sim_product_id').value;
+  const info=document.getElementById('simInventoryInfo');
+  const priceOpt=document.getElementById('sim_product_id').selectedOptions[0];
+  if(priceOpt&&priceOpt.dataset.sell){
+    document.getElementById('sim_price').value=priceOpt.dataset.sell;
+    document.getElementById('sim_cost').value=priceOpt.dataset.cost;
+  }
+  if(!storeId||!prodId){info.classList.add('d-none');return;}
+  const [invRes,fcRes]=await Promise.all([
+    fetch(`/api/inventory?store_id=${storeId}&product_id=${prodId}`),
+    fetch(`/api/forecasts?store_id=${storeId}&product_id=${prodId}&limit=1`)
+  ]);
+  const [invJson,fcJson]=await Promise.all([invRes.json(),fcRes.json()]);
+  let html='';
+  if(invJson.success&&invJson.data.length>0){
+    const inv=invJson.data[0];
+    html+=`<div>📦 Current Stock: <strong>${inv.current_stock}</strong> units | Status: ${stockStatusBadge(inv.stock_status)}</div>`;
+  } else { html+=`<div class="text-warning">⚠️ No inventory record found.</div>`; }
+  if(fcJson.success&&fcJson.data.length>0){
+    const fc=fcJson.data[0];
+    html+=`<div>📊 Latest Forecast: <strong>${parseFloat(fc.predicted_demand).toFixed(1)}</strong> units/day (${fc.model_name})</div>`;
+  } else { html+=`<div class="text-muted">💬 No forecast yet. <a href="/forecast">Generate one first</a>.</div>`; }
+  info.innerHTML=html; info.classList.remove('d-none');
+}
+
+function addScenario() {
+  const container=document.getElementById('scenariosContainer');
+  const count=container.querySelectorAll('.scenario-row').length+1;
+  const letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const letter=letters[count-1]||count;
+  const div=document.createElement('div');
+  div.className='scenario-row input-group mb-2';
+  div.innerHTML=`
+    <input type="text" class="form-control form-control-sm" placeholder="Scenario name" value="Scenario ${letter}">
+    <input type="number" class="form-control form-control-sm" placeholder="Stock" min="0" value="${count*50}">
+    <button class="btn btn-sm btn-outline-danger" onclick="removeScenario(this)"><i class="bi bi-x"></i></button>`;
+  container.appendChild(div);
+}
+
+function removeScenario(btn) {
+  const rows=document.querySelectorAll('.scenario-row');
+  if(rows.length<=1){showToast('Keep at least one scenario.','warning');return;}
+  btn.closest('.scenario-row').remove();
+}
+
+async function runSimulations() {
+  const storeId=document.getElementById('sim_store_id').value;
+  const prodId=document.getElementById('sim_product_id').value;
+  const price=parseFloat(document.getElementById('sim_price').value);
+  const cost=parseFloat(document.getElementById('sim_cost').value);
+  const discount=parseFloat(document.getElementById('sim_discount').value)||0;
+  const days=parseInt(document.getElementById('sim_days').value)||7;
+  if(!storeId||!prodId||!price||!cost){showToast('Please fill all required fields.','warning');return;}
+  const scenarios=[];
+  document.querySelectorAll('.scenario-row').forEach(row=>{
+    const inputs=row.querySelectorAll('input');
+    const name=inputs[0].value.trim(); const stock=parseInt(inputs[1].value);
+    if(name&&stock>=0) scenarios.push({name,stock});
+  });
+  if(scenarios.length<2){showToast('Add at least 2 scenarios to compare.','warning');return;}
+  const btn=document.getElementById('runSimBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Simulating...';
+  try {
+    const simIds=[];
+    for(const sc of scenarios) {
+      const json=await apiRequest('POST','/api/simulation',{
+        product_id:parseInt(prodId),store_id:parseInt(storeId),
+        scenario_name:sc.name,simulated_stock:sc.stock,
+        selling_price:price,cost_price:cost,discount,simulation_days:days
+      });
+      if(json.success) simIds.push(json.data.simulation_id);
+      else showToast(`${sc.name}: ${json.message}`,'warning');
+    }
+    if(simIds.length<2){showToast('At least 2 simulations needed to compare.','warning');return;}
+    const compareJson=await apiRequest('POST','/api/simulations/compare',{simulation_ids:simIds});
+    if(!compareJson.success){handleApiError(compareJson);return;}
+    renderComparison(compareJson);
+  } finally { btn.disabled=false; btn.innerHTML='<i class="bi bi-play-fill me-1"></i>Run Simulation'; }
+}
+
+function renderComparison(data) {
+  document.getElementById('simInstructions').style.display='none';
+  document.getElementById('simResultsPanel').style.display='flex';
+  const best=data.best_scenario;
+  document.getElementById('bestScenarioText').innerHTML=
+    `<strong>${best.scenario_name}</strong> with <strong>${best.simulated_stock}</strong> units is the optimal stocking strategy based on profit maximization with stockout and overstock penalties.`;
+  const tbody=document.getElementById('simComparisonBody');
+  tbody.innerHTML=data.comparison.map(s=>{
+    const isRec=s.recommended==='RECOMMENDED';
+    return `<tr class="${isRec?'table-success':''}">
+      <td class="fw-semibold">${s.scenario_name}${isRec?' <span class="badge bg-success ms-1">Best</span>':''}</td>
+      <td>${s.simulated_stock}</td>
+      <td>${parseFloat(s.expected_sales).toFixed(0)}</td>
+      <td class="text-success">₹${parseFloat(s.expected_revenue).toFixed(0)}</td>
+      <td class="${parseFloat(s.expected_profit)>=0?'text-success':'text-danger'}">₹${parseFloat(s.expected_profit).toFixed(0)}</td>
+      <td class="${s.expected_stockout>0?'text-danger fw-bold':''}">${s.expected_stockout}</td>
+      <td class="${s.expected_overstock>0?'text-warning fw-bold':''}">${s.expected_overstock}</td>
+      <td class="fw-semibold">${s.score?.toFixed(0)||''}</td>
+      <td>${isRec?'<span class="badge bg-success"><i class="bi bi-check-circle"></i></span>':''}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('scoringExplanation').textContent=data.scoring_explanation||'';
+  if(simChart) simChart.destroy();
+  const labels=data.comparison.map(s=>s.scenario_name);
+  const revenues=data.comparison.map(s=>parseFloat(s.expected_revenue));
+  const profits=data.comparison.map(s=>parseFloat(s.expected_profit));
+  const stocks=data.comparison.map(s=>s.simulated_stock);
+  simChart=new Chart(document.getElementById('simChart'),{
+    data:{labels,datasets:[
+      {type:'bar',label:'Revenue (₹)',data:revenues,backgroundColor:'rgba(13,110,253,0.7)',yAxisID:'y'},
+      {type:'bar',label:'Profit (₹)',data:profits,backgroundColor:'rgba(25,135,84,0.7)',yAxisID:'y'},
+      {type:'line',label:'Stock Units',data:stocks,borderColor:'#ffc107',yAxisID:'y2',tension:0.3}
+    ]},
+    options:{responsive:true,scales:{
+      y:{beginAtZero:true,position:'left',title:{display:true,text:'Amount (₹)'}},
+      y2:{beginAtZero:true,position:'right',title:{display:true,text:'Stock Units'},grid:{drawOnChartArea:false}}
+    }}
+  });
+}
+
+document.addEventListener('DOMContentLoaded',initSimSelects);
+</script>
+{% endblock %}

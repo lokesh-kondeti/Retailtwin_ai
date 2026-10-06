@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — RetailTwin AI</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    body { background: #f8f9fa; min-height: 100vh; }
+    .login-card { max-width: 500px; border-radius: 16px; }
+    .brand-icon { width: 60px; height: 60px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+  </style>
+</head>
+<body class="d-flex align-items-center justify-content-center">
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              <i class="bi bi-exclamation-circle me-2"></i>{{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <div class="card login-card border-0 bg-white shadow mx-auto">
+        <div class="card-body p-5">
+          <div class="text-center mb-4">
+            <div class="brand-icon mx-auto mb-3">
+              <i class="bi bi-graph-up-arrow text-white fs-3"></i>
+            </div>
+            <h1 class="h4 fw-bold">RetailTwin AI</h1>
+            <p class="text-muted small">Smart Retail Demand Forecasting</p>
+          </div>
+
+          <form method="POST" action="/auth/login" id="loginForm" novalidate>
+            <div class="mb-3">
+              <label for="email" class="form-label fw-semibold">Email Address</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                <input type="email" class="form-control form-control-lg" id="email" name="email"
+                       value="{{ email|default('') }}" placeholder="you@example.com" required
+                       autocomplete="email">
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label for="password" class="form-label fw-semibold">Password</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                <input type="password" class="form-control form-control-lg" id="password" name="password"
+                       placeholder="Your password" required autocomplete="current-password">
+                <button class="btn btn-outline-secondary" type="button" onclick="togglePwd()">
+                  <i class="bi bi-eye" id="eyeIcon"></i>
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 btn-lg py-2 fw-semibold" id="loginBtn">
+              <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+            </button>
+          </form>
+
+          <hr class="my-4">
+          <div class="bg-light rounded p-3">
+            <p class="small fw-semibold mb-2"><i class="bi bi-info-circle me-1"></i>Test Credentials</p>
+            <div class="small">
+              <div class="mb-1"><span class="badge bg-danger me-1">Admin</span>
+                <code>admin@retailtwin.ai</code> / <code>Admin@1234</code>
+              </div>
+              <div><span class="badge bg-info me-1">Manager</span>
+                <code>manager1@retailtwin.ai</code> / <code>Manager@1234</code>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="text-center text-muted small mt-3">
+        RetailTwin AI &copy; 2024 &mdash; Academic Project
+      </p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  function togglePwd() {
+    const p = document.getElementById('password');
+    const i = document.getElementById('eyeIcon');
+    p.type = p.type === 'password' ? 'text' : 'password';
+    i.className = p.type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash';
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', function(e) {
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    if (!email || !password) {
+      e.preventDefault();
+      alert('Please enter email and password.');
+    }
+  });
+</script>
+</body>
+</html>

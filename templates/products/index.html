@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+{% block title %}Products — RetailTwin AI{% endblock %}
+{% block page_title %}Products Management{% endblock %}
+
+{% block content %}
+<div class="mt-3">
+  <div class="d-flex justify-content-between align-items-center page-header">
+    <div>
+      <h2 class="h5 mb-0">Products</h2>
+      <small class="text-muted">Manage your retail product catalog</small>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
+      <i class="bi bi-plus-circle me-1"></i>Add Product
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2">
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" id="searchInput" class="form-control" placeholder="Search products...">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <select id="categoryFilter" class="form-select">
+            <option value="">All Categories</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-outline-secondary w-100" onclick="loadProducts()">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Products Table -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover border-0 mb-0" id="productsTable">
+          <thead class="table-light">
+            <tr>
+              <th>#</th><th>Product Name</th><th>Category</th>
+              <th>Cost Price</th><th>Selling Price</th><th>Lead Time</th><th>Expiry Days</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="productsBody">
+            <tr><td colspan="7" class="text-center py-4 text-muted">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Product Modal -->
+<div class="modal fade" id="addProductModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content p-2 border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Add Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="addProductForm">
+          <div class="mb-3">
+            <label class="form-label">Product Name *</label>
+            <input type="text" class="form-control" id="add_product_name" maxlength="100" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Category *</label>
+            <select class="form-select" id="add_category_id" required>
+              <option value="">Select category...</option>
+            </select>
+          </div>
+          <div class="row g-2">
+            <div class="col-md-3">
+              <label class="form-label">Cost Price (₹) *</label>
+              <input type="number" class="form-control" id="add_cost_price" min="0.01" step="0.01" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Selling Price (₹) *</label>
+              <input type="number" class="form-control" id="add_selling_price" min="0.01" step="0.01" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Lead Time (d)</label>
+              <input type="number" class="form-control" id="add_lead_time" min="0" value="1">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Expiry Days</label>
+              <input type="number" class="form-control" id="add_expiry_days" min="0" value="365">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="createProduct()">
+          <i class="bi bi-check-lg me-1"></i>Create Product
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Product Modal -->
+<div class="modal fade" id="editProductModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content p-2 border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Edit Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit_product_id">
+        <div class="mb-3">
+          <label class="form-label">Product Name *</label>
+          <input type="text" class="form-control" id="edit_product_name" maxlength="100" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Category *</label>
+          <select class="form-select" id="edit_category_id" required>
+            <option value="">Select category...</option>
+          </select>
+        </div>
+        <div class="row g-2">
+          <div class="col-md-3">
+            <label class="form-label">Cost Price (₹) *</label>
+            <input type="number" class="form-control" id="edit_cost_price" min="0.01" step="0.01" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Selling Price (₹) *</label>
+            <input type="number" class="form-control" id="edit_selling_price" min="0.01" step="0.01" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Lead Time (d)</label>
+            <input type="number" class="form-control" id="edit_lead_time" min="0">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Expiry Days</label>
+            <input type="number" class="form-control" id="edit_expiry_days" min="0">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="updateProduct()">
+          <i class="bi bi-check-lg me-1"></i>Update Product
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let categories = [];
+
+async function loadCategories() {
+  const res = await fetch('/api/categories');
+  const json = await res.json();
+  if (!json.success) return;
+  categories = json.data;
+  ['add_category_id','edit_category_id','categoryFilter'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const isFilter = id === 'categoryFilter';
+    sel.innerHTML = (isFilter ? '<option value="">All Categories</option>' : '<option value="">Select category...</option>') +
+      categories.map(c => `<option value="${c.category_id}">${c.category_name}</option>`).join('');
+  });
+}
+
+async function loadProducts() {
+  const search = document.getElementById('searchInput').value.trim();
+  const catId  = document.getElementById('categoryFilter').value;
+  let url = '/api/products?';
+  if (search) url += `search=${encodeURIComponent(search)}&`;
+  if (catId)  url += `category_id=${catId}&`;
+
+  document.getElementById('productsBody').innerHTML = '<tr><td colspan="7" class="text-center py-3 text-muted">Loading...</td></tr>';
+  const res  = await fetch(url);
+  const json = await res.json();
+  if (!json.success) { handleApiError(json); return; }
+  renderProducts(json.data);
+}
+
+function renderProducts(products) {
+  const tbody = document.getElementById('productsBody');
+  if (!products.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No products found.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = products.map(p => `
+    <tr>
+      <td class="text-muted">${p.product_id}</td>
+      <td class="fw-semibold">${p.product_name}</td>
+      <td><span class="badge bg-secondary">${p.category_name||''}</span></td>
+      <td>₹${parseFloat(p.cost_price).toFixed(2)}</td>
+      <td>₹${parseFloat(p.selling_price).toFixed(2)}</td>
+      <td>${p.lead_time} days</td>
+      <td>${p.expiry_days} days</td>
+      <td>
+        <button class="btn btn-sm btn-outline-primary me-1" onclick='openEditModal(${JSON.stringify(p)})'>
+          <i class="bi bi-pencil"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(${p.product_id}, '${p.product_name.replace(/'/g,"\\'")}')">
+          <i class="bi bi-trash"></i>
+        </button>
+      </td>
+    </tr>`).join('');
+}
+
+async function createProduct() {
+  const name     = document.getElementById('add_product_name').value.trim();
+  const catId    = document.getElementById('add_category_id').value;
+  const costPrice = document.getElementById('add_cost_price').value;
+  const sellPrice = document.getElementById('add_selling_price').value;
+  const leadTime  = document.getElementById('add_lead_time').value;
+  const expiry    = document.getElementById('add_expiry_days').value;
+  if (!name || !catId || !costPrice || !sellPrice) { showToast('Please fill required fields.', 'warning'); return; }
+  const json = await apiRequest('POST', '/api/products', {
+    product_name: name, category_id: parseInt(catId),
+    cost_price: parseFloat(costPrice), selling_price: parseFloat(sellPrice), lead_time: parseInt(leadTime), expiry_days: parseInt(expiry)
+  });
+  if (json.success) {
+    showToast('Product created!', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('addProductModal')).hide();
+    document.getElementById('addProductForm').reset();
+    loadProducts();
+  } else { handleApiError(json); }
+}
+
+function openEditModal(p) {
+  document.getElementById('edit_product_id').value   = p.product_id;
+  document.getElementById('edit_product_name').value = p.product_name;
+  document.getElementById('edit_cost_price').value   = p.cost_price;
+  document.getElementById('edit_selling_price').value= p.selling_price;
+  document.getElementById('edit_lead_time').value    = p.lead_time;
+  document.getElementById('edit_expiry_days').value  = p.expiry_days;
+  const sel = document.getElementById('edit_category_id');
+  for (let opt of sel.options) {
+    if (parseInt(opt.value) === p.category_id) { opt.selected = true; break; }
+  }
+  new bootstrap.Modal(document.getElementById('editProductModal')).show();
+}
+
+async function updateProduct() {
+  const id    = document.getElementById('edit_product_id').value;
+  const name  = document.getElementById('edit_product_name').value.trim();
+  const catId = document.getElementById('edit_category_id').value;
+  const costPrice = document.getElementById('edit_cost_price').value;
+  const sellPrice = document.getElementById('edit_selling_price').value;
+  if (!name || !catId || !costPrice || !sellPrice) { showToast('Please fill required fields.', 'warning'); return; }
+  const json = await apiRequest('PUT', `/api/products/${id}`, {
+    product_name: name, category_id: parseInt(catId),
+    cost_price: parseFloat(costPrice), selling_price: parseFloat(sellPrice),
+    lead_time: parseInt(document.getElementById('edit_lead_time').value),
+    expiry_days: parseInt(document.getElementById('edit_expiry_days').value)
+  });
+  if (json.success) {
+    showToast('Product updated!', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('editProductModal')).hide();
+    loadProducts();
+  } else { handleApiError(json); }
+}
+
+async function deleteProduct(id, name) {
+  if (!confirmDelete(`Delete product "${name}"?`)) return;
+  const json = await apiRequest('DELETE', `/api/products/${id}`);
+  if (json.success) { showToast('Deleted.', 'success'); loadProducts(); }
+  else { handleApiError(json); }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadCategories();
+  loadProducts();
+  document.getElementById('searchInput').addEventListener('keyup', e => {
+    if (e.key === 'Enter') loadProducts();
+  });
+  document.getElementById('categoryFilter').addEventListener('change', loadProducts);
+});
+</script>
+{% endblock %}

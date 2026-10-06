@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+{% block title %}Reports — RetailTwin AI{% endblock %}
+{% block page_title %}Reports{% endblock %}
+
+{% block content %}
+<style>
+  .nav-pills-custom .nav-link {
+    color: #475569;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    padding: 0.6rem 1.2rem;
+    margin-right: 0.5rem;
+    transition: all 0.2s;
+  }
+  .nav-pills-custom .nav-link:hover { background-color: #f1f5f9; }
+  .nav-pills-custom .nav-link.active {
+    background-color: #0f172a;
+    color: #ffffff;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+  .filter-card { border-radius: 1rem; border: 1px solid #e2e8f0; background: #ffffff; }
+  .table-card { border-radius: 1rem; border: 1px solid #e2e8f0; overflow: hidden; }
+  .table-custom th { text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; font-weight: 600; color: #64748b; padding: 1rem; }
+  .table-custom td { padding: 1rem; vertical-align: middle; }
+</style>
+
+<div class="mt-4">
+  <div class="page-header mb-4">
+    <h2 class="h3 fw-bold mb-1">Reports & Analytics</h2>
+    <p class="text-secondary mb-0">Filter, view and export operational reports across all departments</p>
+  </div>
+
+  <ul class="nav nav-pills nav-pills-custom mb-4" id="reportTabs">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#salesTab"><i class="bi bi-cart3 me-2"></i>Sales</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#inventoryTab"><i class="bi bi-box-seam me-2"></i>Inventory</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#forecastTab"><i class="bi bi-graph-up-arrow me-2"></i>Forecasts</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#simulationTab"><i class="bi bi-cpu me-2"></i>Simulations</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#optimizationTab"><i class="bi bi-gear me-2"></i>Optimization</a></li>
+  </ul>
+
+  <div class="tab-content">
+    <!-- Sales Report -->
+    <div class="tab-pane fade show active" id="salesTab">
+      <div class="filter-card p-3 shadow-sm mb-4">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-2"><label class="form-label small text-secondary fw-semibold text-uppercase">Store</label>
+            <select class="form-select bg-light border-0" id="sr_store"><option value="">All Stores</option></select></div>
+          <div class="col-md-2"><label class="form-label small text-secondary fw-semibold text-uppercase">Product</label>
+            <select class="form-select bg-light border-0" id="sr_product"><option value="">All Products</option></select></div>
+          <div class="col-md-2"><label class="form-label small text-secondary fw-semibold text-uppercase">From</label>
+            <input type="date" class="form-control bg-light border-0" id="sr_from"></div>
+          <div class="col-md-2"><label class="form-label small text-secondary fw-semibold text-uppercase">To</label>
+            <input type="date" class="form-control bg-light border-0" id="sr_to"></div>
+          <div class="col-md-4 d-flex justify-content-end gap-2">
+            <button class="btn btn-dark px-4 shadow-sm" onclick="loadSalesReport()"><i class="bi bi-search me-2"></i>Search</button>
+            <button class="btn btn-outline-secondary px-3 shadow-sm" onclick="exportSalesCsv(event)" title="Export to CSV">
+              <i class="bi bi-cloud-download"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="table-card shadow-sm bg-white">
+        <div class="px-4 py-3 border-bottom bg-light bg-opacity-50" id="salesReportSummary"></div>
+        <div class="table-responsive">
+          <table class="table table-hover table-custom mb-0">
+            <thead class="bg-light"><tr><th>#</th><th>Product</th><th>Store</th><th>Date</th><th>Qty</th><th>Price</th><th>Discount</th><th>Revenue</th></tr></thead>
+            <tbody id="salesReportBody"><tr><td colspan="8" class="text-center py-5 text-secondary"><i class="bi bi-funnel fs-4 d-block mb-2 text-muted opacity-50"></i>Apply filters and click Search to view sales data.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inventory Report -->
+    <div class="tab-pane fade" id="inventoryTab">
+      <div class="filter-card p-3 shadow-sm mb-4">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-3"><label class="form-label small text-secondary fw-semibold text-uppercase">Store</label>
+            <select class="form-select bg-light border-0" id="ir_store"><option value="">All Stores</option></select></div>
+          <div class="col-md-9 d-flex justify-content-end gap-2">
+            <button class="btn btn-dark px-4 shadow-sm" onclick="loadInventoryReport()"><i class="bi bi-search me-2"></i>Search</button>
+            <button class="btn btn-outline-secondary px-3 shadow-sm" onclick="exportInventoryCsv(event)" title="Export to CSV">
+              <i class="bi bi-cloud-download"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="table-card shadow-sm bg-white">
+        <div class="table-responsive">
+          <table class="table table-hover table-custom mb-0">
+            <thead class="bg-light"><tr><th>Product</th><th>Store</th><th>Current</th><th>Min</th><th>Max</th><th>Reorder</th><th>Status</th></tr></thead>
+            <tbody id="invReportBody"><tr><td colspan="7" class="text-center py-5 text-secondary"><i class="bi bi-search fs-4 d-block mb-2 text-muted opacity-50"></i>Click Search to load inventory records.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Forecast Report -->
+    <div class="tab-pane fade" id="forecastTab">
+      <div class="d-flex justify-content-end gap-2 mb-4">
+        <button class="btn btn-dark px-4 shadow-sm" onclick="loadForecastReport()"><i class="bi bi-arrow-clockwise me-2"></i>Load Forecasts</button>
+        <button class="btn btn-outline-secondary px-3 shadow-sm" onclick="exportForecastCsv(event)" title="Export to CSV">
+          <i class="bi bi-cloud-download"></i>
+        </button>
+      </div>
+      <div class="table-card shadow-sm bg-white">
+        <div class="table-responsive">
+          <table class="table table-hover table-custom mb-0">
+            <thead class="bg-light"><tr><th>Product</th><th>Store</th><th>Date</th><th>Predicted</th><th>Model</th><th>Quality</th></tr></thead>
+            <tbody id="fcReportBody"><tr><td colspan="6" class="text-center py-5 text-secondary"><i class="bi bi-cloud-arrow-down fs-4 d-block mb-2 text-muted opacity-50"></i>Click Load Forecasts to view data.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Simulation Report -->
+    <div class="tab-pane fade" id="simulationTab">
+      <div class="d-flex justify-content-end gap-2 mb-4">
+        <button class="btn btn-dark px-4 shadow-sm" onclick="loadSimReport()"><i class="bi bi-arrow-clockwise me-2"></i>Load Simulations</button>
+        <button class="btn btn-outline-secondary px-3 shadow-sm" onclick="exportSimCsv(event)" title="Export to CSV">
+          <i class="bi bi-cloud-download"></i>
+        </button>
+      </div>
+      <div class="table-card shadow-sm bg-white">
+        <div class="table-responsive">
+          <table class="table table-hover table-custom mb-0">
+            <thead class="bg-light"><tr><th>Scenario</th><th>Product</th><th>Store</th><th>Stock</th><th>Revenue</th><th>Profit</th><th>Stockout</th><th>Date</th></tr></thead>
+            <tbody id="simReportBody"><tr><td colspan="8" class="text-center py-5 text-secondary"><i class="bi bi-cpu fs-4 d-block mb-2 text-muted opacity-50"></i>Click Load Simulations to view data.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Optimization Report -->
+    <div class="tab-pane fade" id="optimizationTab">
+      <div class="filter-card p-3 shadow-sm mb-4">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-3"><label class="form-label small text-secondary fw-semibold text-uppercase">Store</label>
+            <select class="form-select bg-light border-0" id="or_store"><option value="">All Stores</option></select></div>
+          <div class="col-md-9 d-flex justify-content-end gap-2">
+            <button class="btn btn-dark px-4 shadow-sm" onclick="loadOptReport()"><i class="bi bi-search me-2"></i>Search</button>
+            <button class="btn btn-outline-secondary px-3 shadow-sm" onclick="exportOptCsv(event)" title="Export to CSV">
+              <i class="bi bi-cloud-download"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="table-card shadow-sm bg-white">
+        <div class="table-responsive">
+          <table class="table table-hover table-custom mb-0">
+            <thead class="bg-light"><tr><th>Product</th><th>Store</th><th>Current</th><th>Demand</th><th>Lead Time</th><th>Safety</th><th>Reorder Qty</th><th>Risk</th><th>Status</th></tr></thead>
+            <tbody id="optReportBody"><tr><td colspan="9" class="text-center py-5 text-secondary"><i class="bi bi-search fs-4 d-block mb-2 text-muted opacity-50"></i>Click Search to view optimization data.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function initReportFilters() {
+  const [stRes,prRes]=await Promise.all([fetch('/api/stores'),fetch('/api/products')]);
+  const [stores,products]=await Promise.all([stRes.json(),prRes.json()]);
+  const storeOpts='<option value="">All</option>'+(stores.data||[]).map(s=>`<option value="${s.store_id}">${s.store_name}</option>`).join('');
+  const prodOpts='<option value="">All</option>'+(products.data||[]).map(p=>`<option value="${p.product_id}">${p.product_name}</option>`).join('');
+  ['sr_store','ir_store','or_store'].forEach(id=>{if(document.getElementById(id))document.getElementById(id).innerHTML=storeOpts;});
+  if(document.getElementById('sr_product'))document.getElementById('sr_product').innerHTML=prodOpts;
+}
+
+async function loadSalesReport() {
+  let url='/api/reports/sales?';
+  const store=document.getElementById('sr_store').value;
+  const product=document.getElementById('sr_product').value;
+  const from=document.getElementById('sr_from').value;
+  const to=document.getElementById('sr_to').value;
+  if(store)   url+=`store_id=${store}&`;
+  if(product) url+=`product_id=${product}&`;
+  if(from)    url+=`date_from=${from}&`;
+  if(to)      url+=`date_to=${to}&`;
+  const json=await(await fetch(url)).json();
+  if(!json.success){handleApiError(json);return;}
+  const s=json.summary;
+  document.getElementById('salesReportSummary').innerHTML=
+    `<small class="text-muted">Records: <strong>${s.total_records}</strong> | Qty: <strong>${s.total_quantity}</strong> | Revenue: <strong class="text-success">₹${s.total_revenue.toFixed(2)}</strong></small>`;
+  document.getElementById('salesReportBody').innerHTML=json.data.length?json.data.map(s=>`
+    <tr><td>${s.sale_id}</td><td>${s.product_name||''}</td><td>${s.store_name||''}</td>
+        <td>${s.sale_date||''}</td><td>${s.quantity_sold}</td><td>₹${s.selling_price}</td>
+        <td>${s.discount}%</td><td class="text-success">₹${s.revenue}</td></tr>`).join(''):
+    '<tr><td colspan="8" class="text-center py-3 text-muted">No records.</td></tr>';
+}
+
+async function exportSalesCsv(e) {
+  e.preventDefault();
+  let url='/api/reports/sales?export=csv&';
+  const store=document.getElementById('sr_store').value;
+  const product=document.getElementById('sr_product').value;
+  const from=document.getElementById('sr_from').value;
+  const to=document.getElementById('sr_to').value;
+  if(store)   url+=`store_id=${store}&`;
+  if(product) url+=`product_id=${product}&`;
+  if(from)    url+=`date_from=${from}&`;
+  if(to)      url+=`date_to=${to}&`;
+  window.location.href=url;
+}
+
+async function loadInventoryReport() {
+  let url='/api/reports/inventory?';
+  const store=document.getElementById('ir_store').value;
+  if(store) url+=`store_id=${store}&`;
+  const json=await(await fetch(url)).json();
+  if(!json.success){handleApiError(json);return;}
+  document.getElementById('invReportBody').innerHTML=json.data.length?json.data.map(i=>`
+    <tr><td>${i.product_name||''}</td><td>${i.store_name||''}</td><td class="fw-bold">${i.current_stock}</td>
+        <td>${i.minimum_stock}</td><td>${i.maximum_stock}</td><td>${i.reorder_level}</td>
+        <td>${stockStatusBadge(i.stock_status)}</td></tr>`).join(''):
+    '<tr><td colspan="7" class="text-center py-3 text-muted">No records.</td></tr>';
+}
+
+async function exportInventoryCsv(e) {
+  e.preventDefault();
+  let url='/api/reports/inventory?export=csv&';
+  const store=document.getElementById('ir_store').value;
+  if(store) url+=`store_id=${store}&`;
+  window.location.href=url;
+}
+
+async function loadForecastReport() {
+  const json=await(await fetch('/api/reports/forecasts')).json();
+  if(!json.success){handleApiError(json);return;}
+  document.getElementById('fcReportBody').innerHTML=json.data.length?json.data.map(f=>`
+    <tr><td>${f.product_name||''}</td><td>${f.store_name||''}</td><td>${f.forecast_date||''}</td>
+        <td class="fw-bold text-primary">${parseFloat(f.predicted_demand).toFixed(1)}</td>
+        <td><span class="badge bg-secondary">${f.model_name||''}</span></td>
+        <td>${parseFloat(f.confidence_score).toFixed(1)}%</td></tr>`).join(''):
+    '<tr><td colspan="6" class="text-center py-3 text-muted">No forecasts.</td></tr>';
+}
+
+async function loadSimReport() {
+  const json=await(await fetch('/api/reports/simulations')).json();
+  if(!json.success){handleApiError(json);return;}
+  document.getElementById('simReportBody').innerHTML=json.data.length?json.data.map(s=>`
+    <tr><td class="fw-semibold">${s.scenario_name||''}</td><td>${s.product_name||''}</td><td>${s.store_name||''}</td>
+        <td>${s.simulated_stock}</td><td class="text-success">₹${parseFloat(s.expected_revenue).toFixed(0)}</td>
+        <td class="${parseFloat(s.expected_profit)>=0?'text-success':'text-danger'}">₹${parseFloat(s.expected_profit).toFixed(0)}</td>
+        <td class="${s.expected_stockout>0?'text-danger':''}">${s.expected_stockout}</td>
+        <td class="text-muted small">${(s.simulation_date||'').substring(0,10)}</td></tr>`).join(''):
+    '<tr><td colspan="8" class="text-center py-3 text-muted">No simulations.</td></tr>';
+}
+
+async function loadOptReport() {
+  let url='/api/reports/optimization?';
+  const store=document.getElementById('or_store').value;
+  if(store) url+=`store_id=${store}&`;
+  const json=await(await fetch(url)).json();
+  if(!json.success){handleApiError(json);return;}
+  const riskClasses={HIGH:'bg-danger',MEDIUM:'bg-warning text-dark',LOW:'bg-success'};
+  document.getElementById('optReportBody').innerHTML=json.data.length?json.data.map(r=>`
+    <tr><td>${r.product_name||''}</td><td>${r.store_name||''}</td>
+        <td class="fw-bold">${r.current_stock}</td><td>${r.daily_demand}</td>
+        <td>${r.lead_time_days} days</td><td>${r.safety_stock}</td>
+        <td class="fw-bold text-primary">${r.reorder_quantity}</td>
+        <td><span class="badge ${riskClasses[r.stockout_risk]||'bg-secondary'}">${r.stockout_risk}</span></td>
+        <td>${r.reorder_status}</td></tr>`).join(''):
+    '<tr><td colspan="9" class="text-center py-3 text-muted">No data.</td></tr>';
+}
+
+function exportOptCsv(e) {
+  e.preventDefault();
+  let url='/api/reports/optimization?export=csv&';
+  const store=document.getElementById('or_store').value;
+  if(store) url+=`store_id=${store}&`;
+  window.location.href=url;
+}
+
+function exportForecastCsv(e) {
+  e.preventDefault();
+  window.location.href='/api/reports/forecasts?export=csv';
+}
+
+function exportSimCsv(e) {
+  e.preventDefault();
+  window.location.href='/api/reports/simulations?export=csv';
+}
+
+document.addEventListener('DOMContentLoaded',initReportFilters);
+</script>
+{% endblock %}

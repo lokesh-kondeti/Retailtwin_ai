@@ -1,0 +1,282 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — RetailTwin AI{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="mt-3">
+
+  <style>
+    .stat-card { transition: box-shadow 0.3s; }
+    .stat-card:hover { box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important; }
+  </style>
+  <!-- KPI Row 1 -->
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+      <div class="card stat-card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon stat-icon-primary rounded-circle bg-primary bg-opacity-10 p-3 me-3">
+              <i class="bi bi-box-seam text-primary fs-4"></i>
+            </div>
+            <div>
+              <div class="stat-label text-muted small">Total Products</div>
+              <div class="stat-value fw-bold fs-4" id="kpi-products">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card stat-card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon stat-icon-success rounded-circle bg-success bg-opacity-10 p-3 me-3">
+              <i class="bi bi-shop text-success fs-4"></i>
+            </div>
+            <div>
+              <div class="stat-label text-muted small">Total Stores</div>
+              <div class="stat-value fw-bold fs-4" id="kpi-stores">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card stat-card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon stat-icon-info rounded-circle bg-info bg-opacity-10 p-3 me-3">
+              <i class="bi bi-archive text-info fs-4"></i>
+            </div>
+            <div>
+              <div class="stat-label text-muted small">Total Inventory</div>
+              <div class="stat-value fw-bold fs-4" id="kpi-inventory">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card stat-card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <div class="stat-icon stat-icon-warning rounded-circle bg-warning bg-opacity-10 p-3 me-3">
+              <i class="bi bi-exclamation-triangle text-warning fs-4"></i>
+            </div>
+            <div>
+              <div class="stat-label text-muted small">Low Stock Items</div>
+              <div class="stat-value fw-bold fs-4 text-warning" id="kpi-lowstock">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI Row 2 -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-4">
+      <div class="card stat-card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="stat-label text-muted small">Today's Sales</div>
+          <div class="stat-value fw-bold fs-3" id="kpi-today-sales">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4">
+      <div class="card stat-card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="stat-label text-muted small">Today's Revenue</div>
+          <div class="stat-value fw-bold fs-3 text-success" id="kpi-today-revenue">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card stat-card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="stat-label text-muted small">Revenue (Last 30 Days)</div>
+          <div class="stat-value fw-bold fs-3 text-primary" id="kpi-30d-revenue">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0 fw-semibold">Sales Trend (Last 14 Days)</div>
+        <div class="card-body">
+          <canvas id="salesTrendChart" height="100"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0 fw-semibold">Inventory Status</div>
+        <div class="card-body d-flex align-items-center justify-content-center">
+          <canvas id="inventoryStatusChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0 fw-semibold">Top Products by Revenue (30 Days)</div>
+        <div class="card-body">
+          <canvas id="topProductsChart" height="160"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0 fw-semibold">Recent Demand Forecasts</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+              <thead class="table-light"><tr>
+                <th>Product</th><th>Store</th><th>Date</th><th>Predicted</th><th>Model</th>
+              </tr></thead>
+              <tbody id="forecastTable"><tr><td colspan="5" class="text-center text-muted py-3">Loading...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Simulations -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-0 fw-semibold">Recent Digital Twin Simulations</div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light"><tr>
+            <th>Scenario</th><th>Product</th><th>Store</th><th>Stock</th>
+            <th>Revenue</th><th>Profit</th><th>Stockout</th><th>Date</th>
+          </tr></thead>
+          <tbody id="simulationTable"><tr><td colspan="8" class="text-center text-muted py-3">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let salesChart, invChart, prodChart;
+
+async function loadDashboard() {
+  try {
+    const res = await fetch('/api/dashboard');
+    const json = await res.json();
+    if (!json.success) { console.error(json.message); return; }
+    const d = json.data;
+
+    // KPIs
+    document.getElementById('kpi-products').textContent   = d.total_products;
+    document.getElementById('kpi-stores').textContent     = d.total_stores;
+    document.getElementById('kpi-inventory').textContent  = d.total_inventory.toLocaleString();
+    document.getElementById('kpi-lowstock').textContent   = d.low_stock_count;
+    document.getElementById('kpi-today-sales').textContent   = d.todays_sales;
+    document.getElementById('kpi-today-revenue').textContent  = '₹' + d.todays_revenue.toLocaleString('en-IN', {minimumFractionDigits:2});
+    document.getElementById('kpi-30d-revenue').textContent    = '₹' + d.total_revenue_30d.toLocaleString('en-IN', {minimumFractionDigits:2});
+
+    // Sales Trend Chart
+    const trendLabels = d.sales_trend.map(r => r.date);
+    const trendData   = d.sales_trend.map(r => r.revenue);
+    if (salesChart) salesChart.destroy();
+    salesChart = new Chart(document.getElementById('salesTrendChart'), {
+      type: 'line',
+      data: {
+        labels: trendLabels,
+        datasets: [{
+          label: 'Revenue (₹)',
+          data: trendData,
+          borderColor: '#0d6efd',
+          backgroundColor: 'rgba(13,110,253,0.1)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } },
+                 scales: { y: { beginAtZero: true } } }
+    });
+
+    // Inventory Status Doughnut
+    const inv = d.inventory_status;
+    if (invChart) invChart.destroy();
+    invChart = new Chart(document.getElementById('inventoryStatusChart'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Normal', 'Low Stock', 'Overstock', 'Out of Stock'],
+        datasets: [{
+          data: [inv.NORMAL||0, inv.LOW_STOCK||0, inv.OVERSTOCK||0, inv.OUT_OF_STOCK||0],
+          backgroundColor: ['#198754','#ffc107','#0dcaf0','#dc3545'],
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    // Top Products Bar
+    if (prodChart) prodChart.destroy();
+    prodChart = new Chart(document.getElementById('topProductsChart'), {
+      type: 'bar',
+      data: {
+        labels: d.top_products.map(p => p.name),
+        datasets: [{
+          label: 'Revenue (₹)',
+          data: d.top_products.map(p => p.revenue),
+          backgroundColor: 'rgba(13,110,253,0.7)',
+          borderRadius: 4,
+        }]
+      },
+      options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    // Forecasts table
+    const fTbl = document.getElementById('forecastTable');
+    if (d.latest_forecasts.length === 0) {
+      fTbl.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No forecasts yet. <a href="/forecast">Generate one</a>.</td></tr>';
+    } else {
+      fTbl.innerHTML = d.latest_forecasts.map(f => `
+        <tr>
+          <td>${f.product_name||''}</td>
+          <td>${f.store_name||''}</td>
+          <td>${f.forecast_date||''}</td>
+          <td class="fw-semibold">${parseFloat(f.predicted_demand).toFixed(0)}</td>
+          <td><span class="badge bg-secondary">${f.model_name||''}</span></td>
+        </tr>`).join('');
+    }
+
+    // Simulations table
+    const sTbl = document.getElementById('simulationTable');
+    if (d.recent_simulations.length === 0) {
+      sTbl.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No simulations yet. <a href="/simulation">Run one</a>.</td></tr>';
+    } else {
+      sTbl.innerHTML = d.recent_simulations.map(s => `
+        <tr>
+          <td class="fw-semibold">${s.scenario_name||''}</td>
+          <td>${s.product_name||''}</td>
+          <td>${s.store_name||''}</td>
+          <td>${s.simulated_stock||0}</td>
+          <td class="text-success">₹${parseFloat(s.expected_revenue).toFixed(0)}</td>
+          <td class="${parseFloat(s.expected_profit)>=0?'text-success':'text-danger'}">₹${parseFloat(s.expected_profit).toFixed(0)}</td>
+          <td class="${s.expected_stockout>0?'text-danger':''}">  ${s.expected_stockout||0}</td>
+          <td class="text-muted small">${(s.simulation_date||'').substring(0,10)}</td>
+        </tr>`).join('');
+    }
+
+  } catch(e) {
+    console.error('Dashboard load error:', e);
+  }
+}
+
+loadDashboard();
+</script>
+{% endblock %}
